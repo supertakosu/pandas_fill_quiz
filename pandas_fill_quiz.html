@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>pandas 穴埋めクイズ</title>
+<style>
+:root{--bg:#f6f7fb;--card:#fff;--tx:#1f2430;--sub:#667085;--bd:#d9dde7;--pri:#2f6fed;--ok:#18a058;--ng:#d03050;--code:#f0f2f8;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14161c;--card:#1e222b;--tx:#e8eaf0;--sub:#9aa3b5;--bd:#363c4a;--pri:#6c9bff;--ok:#3ecf8e;--ng:#ff6b81;--code:#262b36;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#14161c;--card:#1e222b;--tx:#e8eaf0;--sub:#9aa3b5;--bd:#363c4a;--pri:#6c9bff;--ok:#3ecf8e;--ng:#ff6b81;--code:#262b36;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;line-height:1.6}
+main{max-width:760px;margin:0 auto;padding:16px}
+h1{font-size:1.2rem;margin:4px 0 12px}
+.bar{height:8px;background:var(--bd);border-radius:4px;overflow:hidden;margin-bottom:6px}
+.bar i{display:block;height:100%;background:var(--pri);transition:width .3s}
+.meta{color:var(--sub);font-size:.9rem;margin-bottom:12px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:14px}
+details summary{cursor:pointer;font-weight:600}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;margin-top:8px;font-size:.9rem}
+th,td{border:1px solid var(--bd);padding:4px 10px;text-align:center;white-space:nowrap}
+th{background:var(--code)}
+pre{background:var(--code);border-radius:8px;padding:14px;margin:12px 0;font:15px/2.2 ui-monospace,Menlo,monospace;overflow-x:auto;white-space:pre}
+select{font:inherit;font-size:16px;padding:4px 6px;border:2px solid var(--pri);border-radius:6px;background:var(--card);color:var(--tx);max-width:100%}
+select.ok{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 15%,var(--card))}
+select.ng{border-color:var(--ng);background:color-mix(in srgb,var(--ng) 15%,var(--card))}
+.btn{font:inherit;font-weight:600;padding:12px 22px;border:0;border-radius:10px;background:var(--pri);color:#fff;cursor:pointer;min-height:44px}
+.btn:disabled{opacity:.4}
+.fb{margin-top:12px;padding:12px;border-radius:8px;display:none}
+.fb.ok{display:block;background:color-mix(in srgb,var(--ok) 15%,var(--card));border-left:4px solid var(--ok)}
+.fb.ng{display:block;background:color-mix(in srgb,var(--ng) 15%,var(--card));border-left:4px solid var(--ng)}
+.score{font-size:3rem;font-weight:800;text-align:center;color:var(--pri)}
+.rv{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.rv span{width:44px;text-align:center;padding:6px 0;border-radius:6px;font-size:.85rem;color:#fff}
+.rv .o{background:var(--ok)}.rv .x{background:var(--ng)}
+.nm{font:inherit;font-size:18px;padding:10px 12px;border:2px solid var(--pri);border-radius:8px;width:100%;max-width:320px;background:var(--card);color:var(--tx);margin:8px 0 12px;display:block}
+.hello{font-size:1.15rem;font-weight:700;text-align:center;margin:8px 0 14px}
+.ghost{background:transparent;color:var(--pri);border:2px solid var(--pri);margin-left:8px}
+.hint{margin-top:12px;padding:12px;border-radius:8px;background:color-mix(in srgb,var(--pri) 12%,var(--card));border-left:4px solid var(--pri)}
+</style>
+</head>
+<body>
+<main>
+<h1>🐼 pandas 穴埋めクイズ👾</h1>
+<p>
+  デュオリンゴってありますよね。それっぽくパクりました。<br>
+  あの鳥ってなんであそこまでマスコットとして有名になったのか気になりませんか？<br>
+  僕は気にならないです。では、頑張ってください。
+</p>
+<div class="card" id="start"><b>はじめに、名前を入力してください</b>
+<input class="nm" id="nm" type="text" maxlength="20" placeholder="名前" autocomplete="off">
+<button class="btn" id="go" disabled>スタート ▶</button></div>
+<div id="quiz" style="display:none">
+<div class="bar"><i id="pb"></i></div>
+<div class="meta" id="meta"></div>
+<details class="card" id="dfbox"><summary>📋 使用するデータ(df)を見る</summary><div class="scroll" id="tbl"></div></details>
+<div id="view"></div>
+</div>
+</main>
+<script>
+const COLS=["名前","性別","国語","数学","英語"];
+const ROWS=[["青木","男",65,72,70],["伊藤","女",80,85,75],["上田","男",72,60,88],["遠藤","女",90,85,62],["大野","男",58,91,95],["加藤","女",77,55,60],["木村","男",85,78,82],["久保","男",70,68,79]];
+// 各問題: [出題文, コード(__n__が穴), [穴ごとの選択肢 "正解｜誤1｜誤2…"], 解説]
+const Q=[
+["数学の平均点を求めます。","avg = df[__0__].__1__()\nprint(avg)",['"数学"｜"国語"｜"性別"｜"名前"','mean｜sum｜max｜min'],"列を指定して mean() で平均値を求めます。"],
+["英語の合計点を求めます。","total = df[__0__].__1__()\nprint(total)",['"英語"｜"数学"｜"名前"','sum｜mean｜count｜min'],"sum() は合計値。count() は(欠損でない)データの個数です。"],
+["国語の最高点・最低点・中央値を求めます。",'print(df["国語"].__0__())  # 最高点\nprint(df["国語"].__1__())  # 最低点\nprint(df["国語"].__2__())  # 中央値',['max｜min｜sum｜mean','min｜max｜count｜median','median｜mean｜mode｜std'],"最大値 max()、最小値 min()、中央値 median()。"],
+["数学の最頻値(いちばん多く出る点数)を求めます。",'m = df["数学"].__0__()[__1__]\nprint(m)',['mode｜median｜mean｜max','0｜1｜-1｜"数学"'],"mode() は最頻値が複数あっても対応できるよう Series で返すので、[0] で先頭を取り出します。"],
+["人数(データの個数)を2通りの方法で求めます。",'n1 = __0__(df)\nn2 = df["名前"].__1__()\nprint(n1, n2)',['len｜sum｜max｜print','count｜sum｜mean｜max'],"len(df) は行数、count() は列の個数を返します。","人数は「数える」ことで求めます。1つ目は「長さ(行数)」を返す関数、2つ目は「データの個数」を数えるメソッドです。sum は合計、max は最大値、mean は平均、print は表示なので、人数は求められません。"],
+["3教科の合計を、新しい列「合計」として追加します。",'df["合計"] = df[__0__].__1__(axis=1)',['["国語", "数学", "英語"]｜["国語", "数学"]｜["数学", "英語"]｜["名前", "国語"]','sum｜mean｜max｜count'],"axis=1 は「行ごと(横方向)」の計算。axis=0 は列ごと(縦方向)です。"],
+["各生徒の3教科の平均を、小数第1位まで求めて「平均」列に入れます。",'df["平均"] = df[["国語", "数学", "英語"]].__0__(axis=1)\ndf["平均"] = df["平均"].__1__(1)',['mean｜sum｜max｜min','round｜sum｜int｜abs'],"axis=1 は行ごと(横方向)の計算です。round(1) で小数第1位に丸めます。"],
+["基本統計量をまとめて確認します。",'print(df.describe())  # 基本統計量の一覧\nprint(df["数学"].__0__())  # 標準偏差\nprint(df[["国語", "数学", "英語"]].__1__())  # 教科ごとの平均',['std｜var｜mean｜max','mean｜sum｜median｜count'],"describe() は個数・平均・標準偏差・最小・四分位・最大をまとめて表示します。"],
+["先頭・末尾の行と、列名を調べます。",'print(df.__0__(3))  # 先頭3行\nprint(df.__1__(2))  # 末尾2行\nprint(df.__2__)  # 列名の一覧',['head｜tail｜loc｜sort_values','tail｜head｜loc｜sum','columns｜index｜shape｜values'],"head(n) は先頭n行、tail(n) は末尾n行、columns は列名です。"],
+["loc を使って、行や値を取り出します。",'row = df.__0__[2]  # 行ラベル2の行\nval = df.loc[__1__, "数学"]  # 行ラベル4の数学の点数\nsub = df.loc[0:__2__]  # 先頭3行(0〜2行目)',['loc｜head｜tail｜sort_values','4｜3｜5｜"数学"','2｜1｜3｜4'],"loc のスライスは終点を「含む」ので、先頭3行は loc[0:2] です。"],
+["列を取り出します(1列だけ/複数列)。",'s = df[__0__]  # 1列だけ(Series)\nsub = df[__1__]  # 国語と数学の2列(DataFrame)',['"国語"｜国語｜["国語"]｜("国語")','["国語", "数学"]｜"国語", "数学"｜("国語", "数学")｜国語, 数学'],"複数の列は、列名をリストにして [ ] の中に入れます(二重のかっこになります)。"],
+["条件を使って行を抽出します。",'a = df[df["数学"] __0__ 80]  # 数学が80点以上\nb = df[df["性別"] __1__ "女"]  # 女子\nc = df[(df["国語"] >= 70) __2__ (df["英語"] >= 70)]  # 国語も英語も70以上',['>=｜<=｜==｜!=','==｜=｜!=｜in','&｜|｜and｜or'],"「等しい」は ==。複数の条件は & (かつ)・| (または) でつなぎ、それぞれ ( ) で囲みます。"],
+["数学の点数が高い順に並べて、上位3人を表示します。",'ranking = df.__0__("数学", ascending=__1__)\nprint(ranking.__2__(3))',['sort_values｜sort_index｜groupby｜describe','False｜True｜"desc"｜"down"','head｜tail｜sum｜max'],"ascending=False で降順(大きい順)。並べ替えたあと head(3) で上位3人です。"],
+["数学の最高点・最低点の生徒の名前を調べます。",'top = df.loc[df["数学"] __0__ df["数学"].__1__(), "名前"]  # 最高点の人\nlow = df.loc[df["数学"] == df["数学"].__2__(), "名前"]  # 最低点の人\nprint(top, low)',['==｜=｜!=｜<','max｜min｜sum｜mean','min｜max｜count｜median'],"数学の列の max() は最高点の値です。「数学 == 最高点」という条件で行を選び、loc の列に名前を指定すると、その人の名前が取り出せます。","数学の点数が一番高い人の列を取りだしたいので、df[数学]とdf[数学].max()が一緒のデータを探索する数式を作る。"],
+["iloc(位置で指定)を使って取り出します。",'a = df.__0__[1:3]  # 1行目と2行目の2行(終点を含まない)\nb = df.iloc[:, __1__]  # 先頭の列\nc = df.iloc[-__2__]  # 最後の行',['iloc｜loc｜head｜tail','0｜1｜2｜-1','1｜0｜2｜3'],"iloc のスライスは通常の Python と同じで終点を含みません。-1 は最後を表します。"],
+["性別ごとに集計します。",'g = df.__0__("性別")\nprint(g["数学"].__1__())  # 数学の平均点\nprint(g["国語"].__2__())  # 国語の最高点',['groupby｜sort_values｜loc｜query','mean｜sum｜count｜min','max｜min｜mean｜count'],"groupby() でグループ分けし、そのあと mean() や max() で集計します。"],
+["性別の人数や最頻値を調べます。",'print(df["性別"].__0__())  # 値ごとの人数\nprint(df["性別"].__1__()[0])  # 最頻値\nprint(df["性別"].__2__())  # 全体の人数',['value_counts｜count｜sum｜max','mode｜median｜mean｜max','count｜sum｜max｜mean'],"value_counts() は値ごとの人数の表、mode() は最頻値、count() は全体の個数を返します。",".count()だと欠損値を無視して数えます。例えば10個中2つ欠損値があると「８」と表示されますが、value_counts()を使うと「10」と表示されます。"],
+["数学が60点以上(合格)の人数と合格率を求めます。",'p = df["数学"] >= 60\nprint(p.__0__())  # 合格人数\nprint(__1__(df[p]))  # 合格者の行数\nprint(p.__2__())  # 合格率',['sum｜count｜max｜min','len｜sum｜max｜sorted','mean｜sum｜max｜count'],"True は 1、False は 0 として計算されるので、sum() が人数、mean() が割合になります。count() は True/False に関係なく全部の個数です。"],
+["loc で、行と列の範囲を同時に指定します。",'x = df.loc[__0__, ["名前", __1__]]  # 先頭4行の「名前」と「数学」',['0:3｜0:4｜0,3｜[0:3]','"数学"｜数学｜"国語"｜"英語"'],"loc[行の範囲, 列名のリスト] の形で指定します。loc は終点を含むので 0:3 で4行です。"],
+["数学の範囲(最高点と最低点の差)と平均を求めます。",'r = df["数学"].__0__() - df["数学"].__1__()\nprint("範囲:", r)\nprint("平均:", round(df["数学"].__2__(), 1))',['max｜min｜sum｜mean','min｜max｜count｜median','mean｜sum｜median｜mode'],"範囲(レンジ)= 最大値 − 最小値 です。"]
+];
+// 選択肢を最初に1回だけシャッフル
+const P=Q.map(q=>({t:q[0],c:q[1],b:q[2].map(s=>{const a=s.split("｜");return{ans:a[0],opts:a.slice().sort(()=>Math.random()-.5)}}),e:q[3],h:q[4]}));
+let i=0,res=[],name="";
+const $=id=>document.getElementById(id);
+(function(){let h="<table><tr>"+COLS.map(c=>"<th>"+c+"</th>").join("")+"</tr>";
+ROWS.forEach((r,k)=>h+="<tr>"+r.map(v=>"<td>"+v+"</td>").join("")+"</tr>");
+$("tbl").innerHTML="<p style='margin:8px 0 0;font-size:.85rem'>import pandas as pd として、<b>df</b> は下の表です。行ラベル(index)は 0〜7 です。</p>"+h+"</table>";})();
+function el(t,c,x){const e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e}
+function show(){
+ $("pb").style.width=(i/P.length*100)+"%";
+ $("meta").textContent=name+"さん  ・  第 "+(i+1)+" 問 / 全 "+P.length+" 問  ・  正解するまで次へ進めません";
+ const p=P[i],v=$("view");v.innerHTML="";
+ const card=el("div","card");
+ card.appendChild(el("div","",""+"Q"+(i+1)+". "+p.t)).style.fontWeight="700";
+ const pre=el("pre"),sels=[];let tries=0;
+ p.c.split(/__(\d)__/).forEach((s,k)=>{
+  if(k%2===0){pre.appendChild(document.createTextNode(s));}
+  else{const b=p.b[+s],sel=el("select");
+   sel.appendChild(new Option("▼ 選ぶ",""));b.opts.forEach(o=>sel.appendChild(new Option(o,o)));
+   sel.onchange=()=>{sel.classList.remove("ng");ck.disabled=sels.some(x=>!x.value)};sels[+s]=sel;pre.appendChild(sel);}
+ });
+ card.appendChild(pre);
+ const ck=el("button","btn","答え合わせ");ck.disabled=true;
+ const fb=el("div","fb");
+ const nx=el("button","btn",i<P.length-1?"次の問題へ ▶":"結果を見る ▶");nx.style.display="none";nx.style.marginTop="12px";
+ ck.onclick=()=>{
+  let all=true;
+  sels.forEach((s,k)=>{if(s.disabled)return;if(s.value===p.b[k].ans){s.className="ok";s.disabled=true}else{all=false;s.className="ng";s.value=""}});
+  fb.style.whiteSpace="pre-wrap";
+  if(all){
+   res[i]=(tries===0);ck.style.display="none";fb.className="fb ok";
+   fb.textContent=(tries===0?"✅ 正解!(+5点)":"✅ 正解!(選び直したので今回は得点なし)")+"\n💡 "+p.e;
+   nx.style.display="inline-block";
+  }else{
+   tries++;ck.disabled=true;fb.className="fb ng";
+   fb.textContent="❌ 惜しい!赤い枠の穴を選び直して、もう一度「答え合わせ」を押そう。(ミス "+tries+" 回)";
+  }
+ };
+ nx.onclick=()=>{i++;i<P.length?show():fin();window.scrollTo(0,0)};
+ card.appendChild(ck);if(p.h){const hb=el("button","btn ghost","💡 ヒント"),hd=el("div","hint",p.h);hd.style.display="none";hb.onclick=()=>{hd.style.display=hd.style.display==="none"?"block":"none"};card.appendChild(hb);card.appendChild(hd);}card.appendChild(fb);card.appendChild(nx);v.appendChild(card);
+}
+function fin(){
+ $("pb").style.width="100%";$("meta").textContent="お疲れさま!結果発表";
+ const n=res.filter(Boolean).length,v=$("view");v.innerHTML="";
+ const c=el("div","card");
+ c.appendChild(el("div","hello",name+"さん！最後までよく頑張りましたね！"));
+ c.appendChild(el("div","score",n*5+" 点"));
+ const s=el("div","","一回で正解できた問題:20問中 "+n+"問(100点満点)");s.style.textAlign="center";c.appendChild(s);
+ const rv=el("div","rv");res.forEach((r,k)=>rv.appendChild(el("span",r?"o":"x","Q"+(k+1)+(r?" ○":" ×"))));
+ c.appendChild(rv);
+ const b=el("button","btn","もう一度チャレンジ");b.onclick=()=>{i=0;res=[];P.forEach(p=>p.b.forEach(x=>x.opts.sort(()=>Math.random()-.5)));show()};
+ c.appendChild(b);v.appendChild(c);
+}
+const nm=$("nm"),go=$("go");
+nm.oninput=()=>{go.disabled=!nm.value.trim()};
+function start(){const v=nm.value.trim();if(!v)return;name=v;$("start").style.display="none";$("quiz").style.display="block";show()}
+go.onclick=start;
+nm.onkeydown=e=>{if(e.key==="Enter"&&!e.isComposing)start()};
+</script>
+</body>
+</html>
